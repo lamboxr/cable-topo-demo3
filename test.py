@@ -1,0 +1,50 @@
+import geopandas as gpd
+
+from data_service import data_service_cable, data_service_nap
+
+
+def join_query():
+    # 1. 读取两个GeoPackage中的图层
+    gpkg_cable = "cable.gpkg"
+    gpkg_nap = "nap.gpkg"
+
+    # 读取线图层（cable）和点图层（nap）
+    gdf_cable = gpd.read_file(gpkg_cable, layer="cable")
+    gdf_nap = gpd.read_file(gpkg_nap, layer="nap")
+
+    # 2. 查看图层字段（确认关联字段存在）
+    print("cable图层字段：", gdf_cable.columns.tolist())  # 需包含 "code" 字段
+    print("nap图层字段：", gdf_nap.columns.tolist())  # 需包含 "cable_code" 字段
+
+    # 3. 基于 "cable.code = nap.cable_code" 进行连接
+    # left_on：左图层（cable）的关联字段
+    # right_on：右图层（nap）的关联字段
+    gdf_joined = gdf_cable.merge(
+        gdf_nap,
+        left_on="code",  # cable图层的关联字段
+        right_on="cable_code",  # nap图层的关联字段
+        how="inner"  # 连接方式（内连接，仅保留匹配的记录）
+    )
+
+    # 4. 查看连接结果
+    print(f"连接后要素数量：{len(gdf_joined)}")
+    # 显示关键关联字段，确认连接是否正确
+    print(gdf_joined[["code", "cable_code"]].head())
+
+def test_sorted_query():
+    l = data_service_cable.get_all_cables_start_with_one_point_by_orders('CL11',['type','code'], ascending=False)
+    if l is not None and not l.empty:
+        for i, cable in l.iterrows():
+            print(f"{cable['code']} {cable['type']} ")
+
+    l2 = data_service_nap.get_all_points_on_cable_by_order_in_start_asc('SRO01-1')
+    if l2 is not None and not l2.empty:
+        for j, nap in l2.iterrows():
+            print(f"{nap['code']} {nap['in_start']}")
+
+def test_count():
+    amt = data_service_cable.get_sub_cables_amt("SRO001")
+    print(amt)
+
+if __name__ == '__main__':
+    test_count()
