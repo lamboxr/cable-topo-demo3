@@ -1,17 +1,52 @@
 from typing import Optional
 
+from constraints.field_name_mapper import CABLE_ORIGIN_FIELD_NAME, CABLE_CODE_FIELD_NAME, CABLE_EXTREMITY_FIELD_NAME, \
+    CABLE_SECTION_FIELD_NAME
 from utils import gpkg_utils
 from utils.gda_utils import LayerDGA
 
 
 def _gda():
-    gpkg_cable_path = gpkg_utils.get_gpkg_path("cable.gpkg")
-    layer_name = "cable"
+    gpkg_cable_path = gpkg_utils.get_gpkg_path("CABLE.gpkg")
+    layer_name = "elj_qae_cable_optique"
     cable_dga = LayerDGA(gpkg_cable_path, layer_name)
     return cable_dga
 
 
 __gda = _gda()
+
+
+def get_next_segment_by_origin_code(section_value, box_code):
+    def custom_condition(gdf):
+        return (gdf[CABLE_SECTION_FIELD_NAME] == section_value) & (
+                gdf[CABLE_ORIGIN_FIELD_NAME] == box_code)
+
+    next_section = __gda.get_features_by_condition(custom_condition)
+    if next_section is None or next_section.empty:
+        return None
+    return next_section.iloc[0]
+
+def get_all_first_segments_start_with_box_order_by_code_asc(box_code: str, upper_section: str):
+    def custom_condition(gdf):
+        return (gdf[CABLE_ORIGIN_FIELD_NAME] == box_code) & (gdf[CABLE_SECTION_FIELD_NAME] != upper_section)
+
+    return __gda.get_features_by_condition(custom_condition, sort_by=[CABLE_CODE_FIELD_NAME])
+
+
+def has_at_least_2_segments_on_cable(first_segment_data) -> bool:
+    """
+    是否有至少2段section在这条cable上
+    section.ORIGIN==第一个section.EXTREMITY,
+    section.SECTION = 第一个section.SECTION,
+    :param first_segment_data: cable上的第一个section
+    :return: 线缆列表
+    """
+
+    def custom_condition(gdf):
+        return (gdf[CABLE_ORIGIN_FIELD_NAME] == first_segment_data[CABLE_EXTREMITY_FIELD_NAME]) & (
+                gdf[CABLE_SECTION_FIELD_NAME] == first_segment_data[CABLE_SECTION_FIELD_NAME])
+
+    return __gda.get_count_by_condition(custom_condition) > 0
 
 
 def get_all_cables_start_with_one_point_by_orders(nap_code, sort_by: Optional[list[str]] = None,
@@ -55,6 +90,7 @@ def set_extremity_by_cable_codes(code_extremity_dict):
 
         __gda.update_attributes(custom_condition, field="extremity", new_value=extremity)
     __gda.save_changes(overwrite=True)
+
 
 def get_sub_cables_amt(nap_code):
     return __gda.get_count_by_attribute("origin_box", "==", nap_code)

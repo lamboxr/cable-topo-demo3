@@ -1,7 +1,9 @@
+from lib2to3.btm_utils import reduce_tree
 from typing import Optional
 
 import pandas as pd
 
+from constraints.field_name_mapper import BOX_CODE_FIELD_NAME
 from data_service import data_service_cable
 from utils import gpkg_utils
 from utils.gda_utils import LayerDGA
@@ -9,7 +11,7 @@ from utils.gda_utils import LayerDGA
 
 def _gda():
     gpkg_cable_path = gpkg_utils.get_gpkg_path("BOX.gpkg")
-    layer_name = "BOX"
+    layer_name = "elj_qae_boite_optique"
     nap_gda = LayerDGA(gpkg_cable_path, layer_name)
     return nap_gda
 
@@ -29,7 +31,6 @@ def boxs_amt_on_cable(cable_box):
     return __gda.get_count_by_attribute("cable_in", "==", cable_box)
 
 
-
 def get_all_sro_points_by_orders(sort_by=None, ascending=True):
     """
     获取所有SRO节点，根据字段排序
@@ -38,6 +39,14 @@ def get_all_sro_points_by_orders(sort_by=None, ascending=True):
     :return: 所有SRO节点列表
     """
     return __gda.get_features_by_attribute(field='class', op='==', value='SRO', sort_by=sort_by, ascending=ascending)
+
+
+def get_box_by_code(box_code):
+    boxes = __gda.get_features_by_attribute(field=BOX_CODE_FIELD_NAME, op='==', value=box_code)
+    if boxes.empty:
+        return None
+    else:
+        return boxes.iloc[0]
 
 
 def get_all_sro_points_by_order_code_asc():

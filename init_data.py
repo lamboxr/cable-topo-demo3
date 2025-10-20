@@ -1,6 +1,6 @@
 # 获取所有distribution1
 from data_service import data_service_cable
-from data_service import data_service_nap
+from data_service import data_service_box
 
 def fill_extremity_of_all_cables():
     extremities = data_service_nap.get_all_extremities()

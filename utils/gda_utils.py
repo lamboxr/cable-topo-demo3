@@ -197,7 +197,7 @@ class LayerDGA:
     # --------------------------
     def get_features_by_condition(
             self,
-            condition: Callable,
+            condition: Optional[Callable[[gpd.GeoDataFrame], bool]] = None,  # 允许为None
             sort_by: Optional[list[str]] = None,  # 改为列表：支持多个字段（如["level", "voltage"]）
             ascending: bool | list[bool] = True  # 改为列表/单个布尔值：对应每个字段的排序方向
     ) -> Optional[gpd.GeoDataFrame]:
@@ -213,19 +213,23 @@ class LayerDGA:
         if self.gdf is None:
             print("图层数据为空，无法查询")
             return None
+        # try:
+        # 1. 处理condition为None的情况：返回全部要素（布尔掩码全为True）
+        if condition is None:
+            condition_result = pd.Series([True] * len(self.gdf), index=self.gdf.index, dtype=bool)
+        else:
+            # 执行条件函数
+            condition_result = condition(self.gdf)
 
-        # 1. 执行条件函数，获取返回值
-        condition_result = condition(self.gdf)
+            # 2. 检查返回值是否为None
+            if condition_result is None:
+                raise ValueError("条件函数返回了None，预期应为布尔类型的Series（布尔掩码）")
 
-        # 2. 检查返回值是否为None
-        if condition_result is None:
-            raise ValueError("条件函数返回了None，预期应为布尔类型的Series（布尔掩码）")
-
-        # 3. 检查返回值是否为有效的布尔掩码（pandas.Series且dtype为bool）
-        if not isinstance(condition_result, pd.Series):
-            raise TypeError(f"条件函数返回值类型错误，预期为pd.Series，实际为{type(condition_result)}")
-        if condition_result.dtype != bool:
-            raise TypeError(f"条件函数返回值应为布尔类型（bool），实际为{condition_result.dtype}")
+            # 3. 检查返回值是否为有效的布尔掩码（pandas.Series且dtype为bool）
+            if not isinstance(condition_result, pd.Series):
+                raise TypeError(f"条件函数返回值类型错误，预期为pd.Series，实际为{type(condition_result)}")
+            if condition_result.dtype != bool:
+                raise TypeError(f"条件函数返回值应为布尔类型（bool），实际为{condition_result.dtype}")
 
         # 4. 筛选符合条件的要素
         filtered_gdf = self.gdf[condition_result].copy()
@@ -268,6 +272,10 @@ class LayerDGA:
 
         print(f"查询到 {len(filtered_gdf)} 个符合条件的要素")
         return filtered_gdf
+        # except Exception as e:
+        #     print(f"查询失败：{str(e)}")
+        #     return gpd.GeoDataFrame()
+
 
     # 便捷方法：属性查询（简化常用场景）
     def get_features_by_attribute(
@@ -300,36 +308,38 @@ class LayerDGA:
 
     def get_count_by_condition(
             self,
-            condition: Callable
+            condition: Optional[Callable[[gpd.GeoDataFrame], bool]] = None,  # 允许为None
     ) -> Optional[gpd.GeoDataFrame]:
         """
         根据条件查询要素集合，支持按多个字段排序
         :param condition: 筛选条件（如：lambda gdf: gdf["level"] == 1）
-        :param sort_by: 排序字段列表（如：["level", "voltage"]，None表示不排序）
-        :param ascending: 排序方向（单个布尔值或列表）：
-                          - 若为单个值：所有字段使用同一方向（True=升序，False=降序）
-                          - 若为列表：需与sort_by长度一致，分别指定每个字段的方向
         :return: 筛选并排序后的GeoDataFrame
         """
         if self.gdf is None:
             print("图层数据为空，无法查询")
             return None
+        # try:
+        # 1. 处理condition为None的情况：返回全部要素（布尔掩码全为True）
+        if condition is None:
+            condition_result = pd.Series([True] * len(self.gdf), index=self.gdf.index, dtype=bool)
+        else:
+            # 执行条件函数
+            condition_result = condition(self.gdf)
 
-        # 1. 执行条件函数，获取返回值
-        condition_result = condition(self.gdf)
+            # 2. 检查返回值是否为None
+            if condition_result is None:
+                raise ValueError("条件函数返回了None，预期应为布尔类型的Series（布尔掩码）")
 
-        # 2. 检查返回值是否为None
-        if condition_result is None:
-            raise ValueError("条件函数返回了None，预期应为布尔类型的Series（布尔掩码）")
-
-        # 3. 检查返回值是否为有效的布尔掩码（pandas.Series且dtype为bool）
-        if not isinstance(condition_result, pd.Series):
-            raise TypeError(f"条件函数返回值类型错误，预期为pd.Series，实际为{type(condition_result)}")
-        if condition_result.dtype != bool:
-            raise TypeError(f"条件函数返回值应为布尔类型（bool），实际为{condition_result.dtype}")
+            # 3. 检查返回值是否为有效的布尔掩码（pandas.Series且dtype为bool）
+            if not isinstance(condition_result, pd.Series):
+                raise TypeError(f"条件函数返回值类型错误，预期为pd.Series，实际为{type(condition_result)}")
+            if condition_result.dtype != bool:
+                raise TypeError(f"条件函数返回值应为布尔类型（bool），实际为{condition_result.dtype}")
 
         # 4. 筛选符合条件的要素
+        filtered_gdf = self.gdf[condition_result].copy()
         return condition_result.sum()
+
 
 
 
@@ -443,6 +453,14 @@ class LayerDGA:
 
 
 def gen_condition(gdf, field, op, value):
+    """生成条件表达式，确保value为标量"""
+    # 关键：如果value是Series，尝试提取第一个值（或根据业务逻辑取标量）
+    if isinstance(value, pd.Series):
+        # 若Series非空，取第一个值；否则返回空条件
+        if not value.empty:
+            value = value.iloc[0]  # 提取第一个元素作为标量
+        else:
+            return pd.Series([False] * len(gdf), index=gdf.index)  # 无匹配值
     if op == ">":
         return gdf[field] > value
     elif op == "<":

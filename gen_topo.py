@@ -2,7 +2,7 @@ import openpyxl
 from openpyxl.styles import Border, Side, Font, Alignment
 
 import init_data
-from data_service import data_service_nap, data_service_cable
+from data_service import data_service_box, data_service_cable
 from utils import excel_utils
 
 # 全局配置

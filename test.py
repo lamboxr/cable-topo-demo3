@@ -1,6 +1,7 @@
 import geopandas as gpd
 
-from data_service import data_service_cable, data_service_nap
+from constraints.field_name_mapper import BOX_CODE_FIELD_NAME
+from data_service import data_service_cable, data_service_box, data_service_sro
 
 
 def join_query():
@@ -37,7 +38,7 @@ def test_sorted_query():
         for i, cable in l.iterrows():
             print(f"{cable['code']} {cable['type']} ")
 
-    l2 = data_service_nap.get_all_points_on_cable_by_order_in_start_asc('SRO01-1')
+    l2 = data_service_box.get_all_points_on_cable_by_order_in_start_asc('SRO01-1')
     if l2 is not None and not l2.empty:
         for j, nap in l2.iterrows():
             print(f"{nap['code']} {nap['in_start']}")
@@ -46,5 +47,15 @@ def test_count():
     amt = data_service_cable.get_sub_cables_amt("SRO001")
     print(amt)
 
+def test_has_at_least_2_sections():
+    sro = data_service_sro.get_sro_by_code("SRO-ELJ-QAE-0001")
+    print(sro)
+    print(f"=*10")
+    print(type(sro['CODE']))
+    _1st_section_list = data_service_cable.get_all_first_segments_start_with_box_order_by_code_asc(sro[BOX_CODE_FIELD_NAME])
+    for _, section in _1st_section_list.iterrows():
+        bl = data_service_cable.has_at_least_2_segments_on_cable(section)
+        print(bl)
+
 if __name__ == '__main__':
-    test_count()
+    test_has_at_least_2_sections()
