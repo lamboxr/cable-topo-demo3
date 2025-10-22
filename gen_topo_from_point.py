@@ -157,14 +157,33 @@ def draw_box_node_and_next_segment_in_same_section(ws, start_row, box_data, uppe
                                                    upper_section, need_to_draw_box_vertical_branch_line):
     col = "A" if upper_cable_level == 0 else excel_utils.get_right_col_letter(
         LEVEL_TO_COLUMN[upper_cable_level])
-    current_row = draw_box_node(ws, start_row, col, box_data, need_to_draw_box_vertical_branch_line)
+    sheet_name = create_box_sheet(ws, col, box_data)
+    # 子sheet内容暂时留空（无需额外操作）
+    current_row = draw_box_node(ws, start_row, col, box_data, sheet_name, need_to_draw_box_vertical_branch_line)
     next_segment = get_next_segment_by_origin_code(upper_section, box_data[BOX_CODE_FIELD_NAME])
     if next_segment is not None and not next_segment.empty:
         draw_vertical_segment(ws, current_row, col, next_segment)
     return current_row
 
 
-def draw_box_node(ws, start_row, col, box_data, need_to_draw_box_vertical_branch_line):
+def create_box_sheet(ws, col, box_data):
+    if col in ['A', 'G']:
+        sheet_name = box_data[BOX_CODE_FIELD_NAME]
+        # 获取工作簿对象（从当前工作表反向获取）
+        wb = ws.parent
+        # 检查子sheet是否已存在，不存在则创建
+        if sheet_name not in wb.sheetnames:
+            ws = wb.create_sheet(title=sheet_name)
+            ws.append([])
+            overview_cell = ws.cell(row=1, column=1)
+            overview_cell.value = "返回逻辑拓扑图"
+            overview_cell.hyperlink = "#'逻辑拓扑图'!A1"  # 直接链接到拓扑总览
+            overview_cell.font = Font(color="0000FF", underline="single")
+            return sheet_name
+    return None
+
+
+def draw_box_node(ws, start_row, col, box_data, sheet_name, need_to_draw_box_vertical_branch_line):
     # if box_data['class'] == 'SRO':
     #     return draw_sro_node_(ws, start_row, box_data, need_to_draw_box_vertical_branch_line)
     # else:
@@ -185,6 +204,7 @@ def draw_box_node(ws, start_row, col, box_data, need_to_draw_box_vertical_branch
                 font=BOLD_FONT,
                 align=CENTER_ALIGN
             )
+
         # 第2行：nap.code + "    " + nap.type（居中）
         elif row == start_row + 1:
             set_cell(
@@ -195,6 +215,11 @@ def draw_box_node(ws, start_row, col, box_data, need_to_draw_box_vertical_branch
                 border=BOX_MIDDLE_ROW_BORDER,
                 align=CENTER_ALIGN
             )
+            print(f"{row} , {col} , {box_data[BOX_CLASS_FIELD_NAME]}")
+            if sheet_name:
+                cell = ws.cell(row=row, column=excel_utils.col_to_num(col))
+                cell.hyperlink = f"#'{sheet_name}'!A1"
+                cell.font = Font(color="0000FF", underline="single")
         # 第3行：留空
         elif row == start_row + 2:
             set_cell(
@@ -286,7 +311,7 @@ def draw_vertical_segment(ws, start_row, col, segment):
         border = Border()
 
     set_cell(ws, row=start_row + 6, col=col, value=f"{section} / {code}",
-             border=border, align=LEFT_ALIGN, font=BOLD_FONT )
+             border=border, align=LEFT_ALIGN, font=BOLD_FONT)
     set_cell(ws, row=start_row + 7, col=col, value=f"{type} {length}",
              border=border, align=LEFT_ALIGN)
 
@@ -637,6 +662,7 @@ POINT_BRANCHES_BORDER = Border(
 )
 
 BOLD_FONT = Font(bold=True)
+BOLD_LINK_FONT = Font(bold=True, italic=True, color="0000FF", underline="single")
 CENTER_ALIGN = Alignment(horizontal='center', vertical='center', wrap_text=True)
 LEFT_ALIGN = Alignment(horizontal='left', vertical='center', wrap_text=True)
 
