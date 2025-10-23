@@ -3,7 +3,8 @@ from typing import Optional
 
 import pandas as pd
 
-from constraints.field_name_mapper import BOX_CODE_FIELD_NAME
+from constraints.field_name_mapper import BOX_CODE_FIELD_NAME, BOX_CABLE_IN_FIELD_NAME, BOX_SKIP_COUNT_FIELD_NAME, \
+    BOX_IN_START_FIELD_NAME
 from data_service import data_service_cable
 from utils import gpkg_utils
 from utils.gda_utils import LayerDGA
@@ -77,6 +78,18 @@ def get_all_points_on_cable_by_orders(cable_code: str, sort_by: Optional[list[st
     return __gda.get_features_by_attribute(field='cable_in', op='==', value=cable_code, sort_by=sort_by,
                                            ascending=ascending)
 
+def get_all_boxs_on_section_by_orders(section: int, sort_by: Optional[list[str]] = None,
+                                      ascending: bool | list[bool] = True):
+    """
+    获取指定线缆上所有掏芯节点（closure,终点）
+    :param section: 根据线缆code查询
+    :param sort_by: 排序字段
+    :param ascending: 是否升序 默认true
+    :return: 所有掏芯节点列表
+    """
+    return __gda.get_features_by_attribute(field=BOX_CABLE_IN_FIELD_NAME, op='==', value=section, sort_by=sort_by,
+                                           ascending=ascending)
+
 
 def get_all_points_on_cable_by_order_in_start_asc(cable_code: str):
     """
@@ -95,6 +108,14 @@ def get_all_points_on_cable(cable_code: str):
     """
     return get_all_points_on_cable_by_orders(cable_code=cable_code)
 
+def get_all_boxs_on_section(section: int):
+    """
+    获取指定线缆上所有掏芯节点（closure,终点）
+    :param section: 根据线缆code查询
+    :return: 所有掏芯节点列表
+    """
+    return get_all_boxs_on_section_by_orders(section=section)
+
 
 def init_data_of_all_sro_points():
     """
@@ -104,7 +125,7 @@ def init_data_of_all_sro_points():
     def custom_condition(gdf):
         return gdf["class"] == 'SRO'
 
-    update_success = __gda.update_attributes(condition=custom_condition, field='skip_count', new_value=0)
+    update_success = __gda.update_attributes(condition=custom_condition, field_values={'skip_count': 0})
     if update_success:
         __gda.save_changes(overwrite=True)
 
@@ -122,4 +143,20 @@ def update_skip_count_of_points_on_cable(cable_code: str, cable_skip_count: int)
 
     __gda.update_attributes(condition=custom_condition, field="skip_count",
                             new_value=__gda.gdf['in_start'] + cable_skip_count - 1)
+    __gda.save_changes(overwrite=True)
+
+
+def update_skip_count_of_boxs_on_section(section: int, section_skip_count: int):
+    """
+    更新指定线缆上所有掏芯节点的skip_count
+    :param section: 根据线缆section查询
+    :param section_skip_count: 线缆skip_count
+    """
+    print(f"section: {section}, skip count: {section_skip_count}")
+
+    def custom_condition(gdf):
+        return gdf[BOX_CABLE_IN_FIELD_NAME] == section
+
+    __gda.update_attributes(condition=custom_condition, field_values={
+        BOX_SKIP_COUNT_FIELD_NAME: __gda.gdf[BOX_IN_START_FIELD_NAME] + section_skip_count - 1})
     __gda.save_changes(overwrite=True)

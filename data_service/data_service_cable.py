@@ -1,7 +1,7 @@
 from typing import Optional
 
 from constraints.field_name_mapper import CABLE_ORIGIN_FIELD_NAME, CABLE_CODE_FIELD_NAME, CABLE_EXTREMITY_FIELD_NAME, \
-    CABLE_SECTION_FIELD_NAME
+    CABLE_SECTION_FIELD_NAME, CABLE_ORIGIN_BOX_FIELD_NAME, CABLE_SKIP_COUNT_FIELD_NAME, CABLE_PORT_START_FIELD_NAME
 from utils import gpkg_utils
 from utils.gda_utils import LayerDGA
 
@@ -25,6 +25,7 @@ def get_next_segment_by_origin_code(section_value, box_code):
     if next_section is None or next_section.empty:
         return None
     return next_section.iloc[0]
+
 
 def get_all_first_segments_start_with_box_order_by_code_asc(box_code: str, upper_section: str):
     def custom_condition(gdf):
@@ -64,6 +65,21 @@ def get_all_cables_start_with_one_point_by_orders(nap_code, sort_by: Optional[li
 
     return __gda.get_features_by_condition(condition=custom_condition, sort_by=sort_by, ascending=ascending)
 
+def get_all_1st_segments_start_with_one_point_by_orders(box_code, sort_by: Optional[list[str]] = None,
+                                                        ascending: bool | list[bool] = True):
+    """
+    获取指定点位为起点的所有线缆,根据字段排序
+    :param box_code: 根据nap_code查询
+    :param sort_by: 排序字段
+    :param ascending: 是否升序，默认True
+    :return: 线缆列表
+    """
+
+    def custom_condition(gdf):
+        return (gdf[CABLE_ORIGIN_BOX_FIELD_NAME] == box_code) & (gdf[CABLE_ORIGIN_FIELD_NAME] == box_code)
+
+    return __gda.get_features_by_condition(condition=custom_condition, sort_by=sort_by, ascending=ascending)
+
 
 def get_all_cables_start_with_one_point_order_by_code_asc(nap_code):
     """
@@ -81,6 +97,14 @@ def get_all_cables_start_with_one_point(nap_code):
     :return: 线缆列表
     """
     return get_all_cables_start_with_one_point_by_orders(nap_code)
+
+def get_all_1st_segments_start_with_one_point(nap_code):
+    """
+    获取指定点位为起点的所有线缆
+    :param nap_code: 根据nap_code查询
+    :return: 线缆列表
+    """
+    return get_all_1st_segments_start_with_one_point_by_orders(nap_code)
 
 
 def set_extremity_by_cable_codes(code_extremity_dict):
@@ -118,10 +142,27 @@ def update_skip_count_of_cable_start_with_point(start_point_code, start_point_sk
     """
 
     def custom_condition(gdf):
-        return gdf["origin_box"] == start_point_code
+        return gdf[CABLE_ORIGIN_BOX_FIELD_NAME] == start_point_code
 
     update_success = __gda.update_attributes(condition=custom_condition, field='skip_count',
                                              new_value=__gda.gdf['port_start'] + start_point_skip_count - 1)
+    if update_success:
+        __gda.save_changes(overwrite=True)
+
+
+def update_skip_count_of_1st_segment_of_section_start_with_point(start_point_code, start_point_skip_count):
+    """
+    更新起点为指定点的所有线缆的skip_count
+    :param start_point_code: 根据nap_code查询
+    :param start_point_skip_count: nap上的skip_count
+    """
+
+    def custom_condition(gdf):
+        return (gdf[CABLE_ORIGIN_BOX_FIELD_NAME] == start_point_code) & (
+                gdf[CABLE_ORIGIN_FIELD_NAME] == start_point_code)
+
+    update_success = __gda.update_attributes(condition=custom_condition, field_values={
+        CABLE_SKIP_COUNT_FIELD_NAME: __gda.gdf[CABLE_PORT_START_FIELD_NAME] + start_point_skip_count - 1})
     if update_success:
         __gda.save_changes(overwrite=True)
 

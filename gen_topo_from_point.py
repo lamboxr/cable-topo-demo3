@@ -1,6 +1,6 @@
 import openpyxl
 import pandas as pd
-from openpyxl.styles import Border, Side, Font, Alignment
+from openpyxl.styles import Border, Side, Font, Alignment, PatternFill
 
 import init_data
 from constraints.field_name_mapper import *
@@ -179,6 +179,44 @@ def create_box_sheet(ws, col, box_data):
             overview_cell.value = "返回逻辑拓扑图"
             overview_cell.hyperlink = "#'逻辑拓扑图'!A1"  # 直接链接到拓扑总览
             overview_cell.font = Font(color="0000FF", underline="single")
+            # 合并A2到C2单元格（修正为横向合并）
+            ws.merge_cells('A2:C2')
+
+            # 获取合并后的单元格对象（以左上角单元格为代表）
+            merged_cell = ws['A2']
+
+            # 设置单元格文字
+            merged_cell.value = "SRO"
+
+            # 设置底色（00B050对应的RGB颜色）
+            fill = PatternFill(
+                fill_type="solid",
+                start_color="00B050",  # 绿色底色
+                end_color="00B050"
+            )
+            merged_cell.fill = fill
+
+            # 设置边框（四周边框）
+            side = Side(style='thin', color='000000')  # 黑色细边框
+            border = Border(
+                left=side,
+                right=side,
+                top=side,
+                bottom=side
+            )
+            merged_cell.border = border
+
+            # 设置文字对齐（水平和垂直居中）
+            merged_cell.alignment = Alignment(
+                horizontal='center',
+                vertical='center'
+            )
+
+            # 优化字体样式（加粗、白色文字与绿色底色对比）
+            merged_cell.font = Font(
+                bold=True,
+                color="FFFFFF"  # 白色文字
+            )
             return sheet_name
     return None
 
@@ -715,4 +753,5 @@ def set_cell(ws, row, col, value, border=None, font=None, align=None):
 #     return value
 
 if __name__ == '__main__':
-    generate_topo_excel("拓扑图输出2.xlsx")
+    init_data.main()
+    # generate_topo_excel("拓扑图输出2.xlsx")

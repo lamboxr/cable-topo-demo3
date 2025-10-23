@@ -74,50 +74,146 @@ class LayerDGA:
     #     print(f"已更新 {mask.sum()} 个要素的 {field} 字段")
     #     return True
 
-    def update_attributes(self,
-                          condition: Callable,
-                          field: str,
-                          new_value,
-                          value_processor: Optional[Callable] = None) -> bool:
+    # def update_attributes(self,
+    #                       condition: Callable,
+    #                       field: str,
+    #                       new_value,
+    #                       value_processor: Optional[Callable] = None) -> bool:
+    #     """
+    #     按条件更新指定字段的值（支持处理空值/非数字值）
+    #     :param condition: 筛选条件（如：lambda gdf: gdf["level"] == 1）
+    #     :param field: 要更新的字段名（A字段）
+    #     :param new_value: 新值表达式（如：gdf["B"] + 10）
+    #     :param value_processor: 值处理器（可选），用于清洗new_value中的无效值
+    #                             （如：lambda x: x.fillna(0) 填充空值为0）
+    #     :return: 更新成功返回True
+    #     """
+    #     if self.gdf is None or field not in self.gdf.columns:
+    #         print(f"图层为空或字段不存在：{field}")
+    #         return False
+    #
+    #     # 筛选符合条件的行
+    #     mask = condition(self.gdf)
+    #     if not mask.any():
+    #         print("无符合条件的要素可更新")
+    #         return True
+    #
+    #     # 计算原始新值（可能包含空值/非数字）
+    #     raw_new_value = new_value
+    #
+    #     # 应用值处理器（清洗无效值）
+    #     if value_processor is not None:
+    #         processed_new_value = value_processor(raw_new_value)
+    #     else:
+    #         processed_new_value = raw_new_value
+    #
+    #     # 仅更新符合条件的行
+    #     self._gdf.loc[mask, field] = processed_new_value
+    #
+    #     # 统计有效更新数量（排除因无效值导致的未更新）
+    #     if isinstance(processed_new_value, (pd.Series, np.ndarray)):
+    #         # 数组类型：用 isna() 判断空值
+    #         valid_mask = mask & ~processed_new_value.isna()
+    #     else:
+    #         # 单个值（如 int/float）：非空即有效
+    #         valid_mask = mask  # 单个值无空值问题，直接使用原始条件掩码
+    #     print(f"已更新 {self.layer_name} 图层 {valid_mask.sum()} 个要素的 {field} 字段（总符合条件 {mask.sum()} 个）")
+    #     return True
+    def update_attributes(
+            self,
+            condition: Optional[Callable] = None,  # 支持为空（更新全部）
+            field_values: Dict[str, any] = None,  # 多字段更新：键=字段名，值=新值/表达式
+            value_processor: Optional[Callable] = None  # 支持对单个字段传处理器（可选）
+    ) -> bool:
         """
-        按条件更新指定字段的值（支持处理空值/非数字值）
-        :param condition: 筛选条件（如：lambda gdf: gdf["level"] == 1）
-        :param field: 要更新的字段名（A字段）
-        :param new_value: 新值表达式（如：gdf["B"] + 10）
-        :param value_processor: 值处理器（可选），用于清洗new_value中的无效值
-                                （如：lambda x: x.fillna(0) 填充空值为0）
-        :return: 更新成功返回True
+        按条件更新指定字段的值（支持condition为空、多字段更新、处理无效值）
+        :param condition: 筛选条件（可为None，此时更新全部要素）
+        :param field_values: 多字段更新字典（如：{"A": gdf["B"]+10, "C": 0}）
+        :param value_processor: 值处理器（可选），支持两种形式：
+                                1. 单个函数：对所有字段的新值统一处理
+                                2. 字典：对不同字段传不同处理器（如：{"A": lambda x: x.fillna(0), "C": lambda x: x.astype(int)}）
+        :return: 更新成功返回True，失败返回False
         """
-        if self.gdf is None or field not in self.gdf.columns:
-            print(f"图层为空或字段不存在：{field}")
+        # 1. 基础校验
+        if self.gdf is None:
+            print("图层为空，无法更新")
+            return False
+        if field_values is None or not isinstance(field_values, dict):
+            print("field_values必须是非空字典（键=字段名，值=新值）")
+            return False
+        # 校验所有字段是否存在
+        invalid_fields = [field for field in field_values.keys() if field not in self.gdf.columns]
+        if invalid_fields:
+            print(f"以下字段不存在：{invalid_fields}，无法更新")
             return False
 
-        # 筛选符合条件的行
-        mask = condition(self.gdf)
+        # 2. 处理condition为空：生成全为True的掩码（更新全部）
+        if condition is None:
+            mask = pd.Series([True] * len(self.gdf), index=self.gdf.index, dtype=bool)
+            print("condition为空，将更新图层所有要素")
+        else:
+            # 执行条件函数并校验结果
+            try:
+                mask = condition(self.gdf)
+                if mask is None:
+                    raise ValueError("条件函数返回None，预期为布尔类型Series")
+                if not isinstance(mask, pd.Series) or mask.dtype != bool:
+                    raise TypeError("条件函数返回值必须是布尔类型Series")
+            except Exception as e:
+                print(f"条件函数执行失败：{str(e)}")
+                return False
+
+        # 3. 校验符合条件的要素（无符合条件时直接返回）
         if not mask.any():
             print("无符合条件的要素可更新")
             return True
 
-        # 计算原始新值（可能包含空值/非数字）
-        raw_new_value = new_value
+        # 4. 遍历多字段，逐个更新
+        total_valid = 0  # 统计所有字段的有效更新总数
+        for field, new_value in field_values.items():
+            # 4.1 计算当前字段的原始新值
+            raw_new_value = new_value
 
-        # 应用值处理器（清洗无效值）
-        if value_processor is not None:
-            processed_new_value = value_processor(raw_new_value)
+            # 4.2 选择当前字段的处理器（优先字段专属，无则用全局）
+            if isinstance(value_processor, dict):
+                field_processor = value_processor.get(field)  # 字段专属处理器
+            else:
+                field_processor = value_processor  # 全局处理器
+
+            # 4.3 应用处理器清洗新值
+            if field_processor is not None:
+                try:
+                    processed_new_value = field_processor(raw_new_value)
+                except Exception as e:
+                    print(f"字段 {field} 的值处理器执行失败：{str(e)}，跳过该字段更新")
+                    continue
+            else:
+                processed_new_value = raw_new_value
+
+            # 4.4 执行字段更新（仅更新符合条件的行）
+            try:
+                self._gdf.loc[mask, field] = processed_new_value
+            except Exception as e:
+                print(f"字段 {field} 更新失败：{str(e)}，跳过该字段更新")
+                continue
+
+            # 4.5 统计当前字段的有效更新数量
+            if isinstance(processed_new_value, (pd.Series, np.ndarray, gpd.GeoSeries)):
+                # 数组类型：排除空值
+                valid_mask = mask & ~processed_new_value.isna()
+            else:
+                # 单个值：所有符合条件的行均有效
+                valid_mask = mask
+            field_valid_count = valid_mask.sum()
+            total_valid += field_valid_count
+            print(
+                f"已更新 {self.layer_name} 图层 {field_valid_count} 个要素的 {field} 字段（该字段符合条件 {mask.sum()} 个）")
+
+        # 5. 最终结果提示
+        if total_valid == 0:
+            print("所有字段均未完成有效更新")
         else:
-            processed_new_value = raw_new_value
-
-        # 仅更新符合条件的行
-        self._gdf.loc[mask, field] = processed_new_value
-
-        # 统计有效更新数量（排除因无效值导致的未更新）
-        if isinstance(processed_new_value, (pd.Series, np.ndarray)):
-            # 数组类型：用 isna() 判断空值
-            valid_mask = mask & ~processed_new_value.isna()
-        else:
-            # 单个值（如 int/float）：非空即有效
-            valid_mask = mask  # 单个值无空值问题，直接使用原始条件掩码
-        print(f"已更新 {self.layer_name} 图层 {valid_mask.sum()} 个要素的 {field} 字段（总符合条件 {mask.sum()} 个）")
+            print(f"多字段更新完成，累计有效更新 {total_valid} 次（含多个字段叠加）")
         return True
 
     def add_features(self, new_features: gpd.GeoDataFrame) -> bool:

@@ -18,9 +18,23 @@ def _gda():
 
 __gda = _gda()
 
+
 def get_all_sro_order_by_code_asc():
     return __gda.get_features_by_condition(sort_by=[BOX_CODE_FIELD_NAME])
 
 
 def get_sro_by_code(code):
-    return __gda.get_features_by_attribute(field='CODE', op="==",value=code)
+    return __gda.get_features_by_attribute(field='CODE', op="==", value=code)
+
+
+def init_data_of_all_sro_points():
+    """
+    初始化所有sro节点的skip_count值为0
+    """
+
+    # def custom_condition(gdf):
+    #     return gdf["class"] == 'SRO'
+
+    update_success = __gda.update_attributes(condition=None, field_values={"skip_count": 0})
+    if update_success:
+        __gda.save_changes(overwrite=True)
