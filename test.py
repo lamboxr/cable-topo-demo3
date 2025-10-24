@@ -52,7 +52,7 @@ def test_has_at_least_2_sections():
     print(sro)
     print(f"=*10")
     print(type(sro['CODE']))
-    _1st_section_list = data_service_cable.get_all_first_segments_start_with_box_order_by_code_asc(sro[BOX_CODE_FIELD_NAME])
+    _1st_section_list = data_service_cable.get_all_1st_segments_start_with_box_order_by_code_asc(sro[BOX_CODE_FIELD_NAME])
     for _, section in _1st_section_list.iterrows():
         bl = data_service_cable.has_at_least_2_segments_on_cable(section)
         print(bl)

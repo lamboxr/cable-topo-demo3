@@ -1,7 +1,8 @@
 from typing import Optional
 
 from constraints.field_name_mapper import CABLE_ORIGIN_FIELD_NAME, CABLE_CODE_FIELD_NAME, CABLE_EXTREMITY_FIELD_NAME, \
-    CABLE_SECTION_FIELD_NAME, CABLE_ORIGIN_BOX_FIELD_NAME, CABLE_SKIP_COUNT_FIELD_NAME, CABLE_PORT_START_FIELD_NAME
+    CABLE_SECTION_FIELD_NAME, CABLE_ORIGIN_BOX_FIELD_NAME, CABLE_SKIP_COUNT_FIELD_NAME, CABLE_PORT_START_FIELD_NAME, \
+    CABLE_LEVEL_FIELD_NAME
 from utils import gpkg_utils
 from utils.gda_utils import LayerDGA
 
@@ -27,9 +28,30 @@ def get_next_segment_by_origin_code(section_value, box_code):
     return next_section.iloc[0]
 
 
-def get_all_first_segments_start_with_box_order_by_code_asc(box_code: str, upper_section: str):
+def get_next_segment(segment):
+    section = segment[CABLE_SECTION_FIELD_NAME]
+    extremity = segment[CABLE_EXTREMITY_FIELD_NAME]
+    return get_next_segment_by_origin_code(section, extremity)
+
+
+def get_all_1st_segments_on_d1_section_order_by_skip_count_asc():
     def custom_condition(gdf):
-        return (gdf[CABLE_ORIGIN_FIELD_NAME] == box_code) & (gdf[CABLE_SECTION_FIELD_NAME] != upper_section)
+        return (gdf[CABLE_LEVEL_FIELD_NAME] == 1) & (gdf[CABLE_ORIGIN_FIELD_NAME] == gdf[CABLE_ORIGIN_BOX_FIELD_NAME])
+
+    return __gda.get_features_by_condition(custom_condition, sort_by=[CABLE_SKIP_COUNT_FIELD_NAME])
+
+
+def get_all_1st_segments_on_d2_section_order_by_skip_count_asc():
+    def custom_condition(gdf):
+        return (gdf[CABLE_LEVEL_FIELD_NAME] == 2) & (gdf[CABLE_ORIGIN_FIELD_NAME] == gdf[CABLE_ORIGIN_BOX_FIELD_NAME])
+
+    return __gda.get_features_by_condition(custom_condition, sort_by=[CABLE_SKIP_COUNT_FIELD_NAME])
+
+
+def get_all_1st_segments_start_with_box_order_by_code_asc(box_code: str, upper_section: str):
+    def custom_condition(gdf):
+        return ((gdf[CABLE_ORIGIN_FIELD_NAME] == box_code)
+                & (gdf[CABLE_SECTION_FIELD_NAME] != upper_section))
 
     return __gda.get_features_by_condition(custom_condition, sort_by=[CABLE_CODE_FIELD_NAME])
 
@@ -65,6 +87,7 @@ def get_all_cables_start_with_one_point_by_orders(nap_code, sort_by: Optional[li
 
     return __gda.get_features_by_condition(condition=custom_condition, sort_by=sort_by, ascending=ascending)
 
+
 def get_all_1st_segments_start_with_one_point_by_orders(box_code, sort_by: Optional[list[str]] = None,
                                                         ascending: bool | list[bool] = True):
     """
@@ -97,6 +120,60 @@ def get_all_cables_start_with_one_point(nap_code):
     :return: 线缆列表
     """
     return get_all_cables_start_with_one_point_by_orders(nap_code)
+
+
+def get_all_d2_cables_order_by_skip_count():
+    """
+    获取指定点位为起点的所有线缆
+    :return: 线缆列表
+    """
+
+    def custom_condition(gdf):
+        return gdf[CABLE_LEVEL_FIELD_NAME] == 2
+
+    return __gda.get_features_by_condition(condition=custom_condition, sort_by=[CABLE_PORT_START_FIELD_NAME],
+                                           ascending=True)
+
+
+def get_all_1st_segments_on_d3_cable_order_by_skip_count():
+    """
+    获取指定点位为起点的所有线缆
+    :return: 线缆列表
+    """
+
+    def custom_condition(gdf):
+        return (gdf[CABLE_LEVEL_FIELD_NAME] == 3) & (gdf[CABLE_ORIGIN_BOX_FIELD_NAME] == gdf[CABLE_ORIGIN_FIELD_NAME])
+
+    return __gda.get_features_by_condition(condition=custom_condition, sort_by=[CABLE_PORT_START_FIELD_NAME],
+                                           ascending=True)
+
+
+def get_all_d3_cables_order_by_skip_count():
+    """
+    获取指定点位为起点的所有线缆
+    :return: 线缆列表
+    """
+
+    def custom_condition(gdf):
+        return gdf[CABLE_LEVEL_FIELD_NAME] == 3
+
+    return __gda.get_features_by_condition(condition=custom_condition, sort_by=[CABLE_PORT_START_FIELD_NAME],
+                                           ascending=True)
+
+
+def get_all_d2_d3_cables_order_by_skip_count():
+    """
+    获取指定点位为起点的所有线缆
+    :return: 线缆列表
+    """
+
+    def custom_condition(gdf):
+        return (gdf[CABLE_LEVEL_FIELD_NAME] == 2) | (gdf[CABLE_LEVEL_FIELD_NAME] == 3)
+
+    return __gda.get_features_by_condition(condition=custom_condition,
+                                           sort_by=[CABLE_LEVEL_FIELD_NAME, CABLE_PORT_START_FIELD_NAME],
+                                           ascending=True)
+
 
 def get_all_1st_segments_start_with_one_point(nap_code):
     """

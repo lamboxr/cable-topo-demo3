@@ -34,3 +34,52 @@
 | 11   | 青   | 66FFFF |
 | 12   | 粉   | FFCCFF |
 
+绘制表头：
+
+title_1st_row = 2
+
+start_col = 1
+
+字体=宋体
+
+box_bg_color = 00B050
+
+splice_bg_color = FFFF00
+
+blank_bg_color = 000000
+
+section_bg_color = 00B0F0
+
+对齐方式：水平居中
+
+
+
+第一组表头
+
+| row             | col         | VALUE    | 字号 | 加粗 | 背景色       | 边框       | 合并规则                                  |
+| --------------- | ----------- | -------- | ---- | ---- | ------------ | ---------- | ----------------------------------------- |
+| title_1st_row   | start_col   | SRO      | 12   | true | box_bg_color | 合并后四边 | title_1st_row<br />start_col：start_col+2 |
+| title_1st_row+1 | start_col   | SRO Port | 11   | true | box_bg_color | 四边       |                                           |
+| title_1st_row+1 | start_col+1 | ODF Code | 11   | true | box_bg_color | 四边       |                                           |
+| title_1st_row+1 | start_col+2 | ODF Port | 11   | true | box_bg_color | 四边       |                                           |
+
+第二组表头
+
+| row             | col         | VALUE        | 字号 | 加粗 | 背景色          | 边框       | 合并规则                                                     |
+| --------------- | ----------- | ------------ | ---- | ---- | --------------- | ---------- | ------------------------------------------------------------ |
+| title_1st_row   | start_col+3 | Splice State | 12   | true | splice_bg_color | 合并后四边 | title_1st_row：title_1st_row +1<br />start_col+3<br />合并后自动换行 |
+| title_1st_row   | start_col+4 |              |      |      | blank_bg_color  | 四边       |                                                              |
+| title_1st_row+1 | start_col+4 |              |      |      | blank_bg_color  | 四边       |                                                              |
+
+
+
+第三组表头
+
+| row             | col         | VALUE          | 字号 | 加粗 | 背景色           | 边框       | 合并规则                                    |
+| --------------- | ----------- | -------------- | ---- | ---- | ---------------- | ---------- | ------------------------------------------- |
+| title_1st_row   | start_col+5 | Distribution 1 | 12   | true | section_bg_color | 合并后四边 | title_1st_row<br />start_col+5：start_col+9 |
+| title_1st_row+1 | start_col+5 | Code           | 11   | true | section_bg_color | 四边       |                                             |
+| title_1st_row+1 | start_col+6 | Type           | 11   | true | section_bg_color | 四边       |                                             |
+| title_1st_row+1 | start_col+7 | NO.            | 11   | true | section_bg_color | 四边       |                                             |
+| title_1st_row+1 | start_col+8 | T              | 11   | true | section_bg_color | 四边       |                                             |
+| title_1st_row+1 | start_col+9 | F              | 11   | true | section_bg_color | 四边       |                                             |
