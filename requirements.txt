@@ -1,4 +1,5 @@
-pandas
+pandas>=2.0.0
 openpyxl
-geopandas~=1.1.1
+geopandas==1.1.1
 shapely~=2.1.2
+numpy>=1.25.0
