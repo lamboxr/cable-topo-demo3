@@ -78,6 +78,7 @@ def get_all_points_on_cable_by_orders(cable_code: str, sort_by: Optional[list[st
     return __gda.get_features_by_attribute(field='cable_in', op='==', value=cable_code, sort_by=sort_by,
                                            ascending=ascending)
 
+
 def get_all_boxs_on_section_by_orders(section: int, sort_by: Optional[list[str]] = None,
                                       ascending: bool | list[bool] = True):
     """
@@ -107,6 +108,7 @@ def get_all_points_on_cable(cable_code: str):
     :return: 所有掏芯节点列表
     """
     return get_all_points_on_cable_by_orders(cable_code=cable_code)
+
 
 def get_all_boxs_on_section(section: int):
     """
@@ -141,8 +143,8 @@ def update_skip_count_of_points_on_cable(cable_code: str, cable_skip_count: int)
     def custom_condition(gdf):
         return gdf["cable_in"] == cable_code
 
-    __gda.update_attributes(condition=custom_condition, field="skip_count",
-                            new_value=__gda.gdf['in_start'] + cable_skip_count - 1)
+    __gda.update_attributes(condition=custom_condition,
+                            field_values={"skip_count": __gda.gdf['in_start'] + cable_skip_count - 1})
     __gda.save_changes(overwrite=True)
 
 

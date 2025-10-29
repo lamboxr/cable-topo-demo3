@@ -1,6 +1,10 @@
+import os
+from datetime import datetime
+
 import openpyxl
 import pandas as pd
 from openpyxl.styles import Border, Side, Font, Alignment, PatternFill
+from openpyxl.worksheet.hyperlink import Hyperlink
 
 import init_data
 from box_sheet_creator import create_box_sheet
@@ -25,14 +29,31 @@ LEVEL_TO_COLUMN = {
     3: 'F'
 }
 GROUP_ROWS = 10  # 每组占用8行
-SHEET_ZOOM_SCALE = 50
+SHEET_ZOOM_SCALE = 70
+sheet_topo_title = "TOPO_OVERVIEW"
 
+def gen_topo_files(output_dir):
+    files = []
+    if not os.path.exists(output_dir):
+        raise FileNotFoundError(f"File {output_dir} not found.")
+
+    # 1. 获取所有SRO节点（根节点），按code升序
+    sro_boxes = data_service_sro.get_all_sro_order_by_code_asc()
+    if sro_boxes is None or sro_boxes.empty:
+        raise Exception("No sro boxes found.")
+
+    for _, sro in sro_boxes.iterrows():
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        output_path = os.path.join(output_dir,f"{sro[BOX_CODE_FIELD_NAME]}-TOPO_{timestamp}.xlsx")
+        generate_sro_topo_wb(output_path, sro)
+        files.append(output_path)
+    return files
 
 def init_workbook():
     """初始化Excel工作簿，设置列宽和样式基础"""
     wb = openpyxl.Workbook()
     ws_topo = wb.active
-    sheet_topo_title = "逻辑拓扑图"
+
     ws_topo.title = sheet_topo_title
     ws_topo.sheet_view.zoomScale = SHEET_ZOOM_SCALE
 
@@ -43,31 +64,25 @@ def init_workbook():
     return wb, ws_topo
 
 
-def generate_topo_sheet(output_path):
+def generate_sro_topo_wb(output_path, sro):
     """生成拓扑Excel的主函数"""
     wb, ws_topo = init_workbook()
     current_row = 2  # 起始行
 
-    # 1. 获取所有SRO节点（根节点），按code升序
-    sro_boxes = data_service_sro.get_all_sro_order_by_code_asc()
-    if sro_boxes is None or sro_boxes.empty:
-        print("无SRO节点数据，无法生成拓扑图")
-        return
-
-    for _, sro in sro_boxes.iterrows():
-        current_row = draw_point_and_resources(ws=ws_topo, current_row=current_row, box_data=sro, upper_cable_level=0,
-                                               upper_section_value="N/A")
-        sub_cable_amt = data_service_cable.get_all_1st_segments_start_with_box_order_by_code_asc(
-            sro[BOX_CODE_FIELD_NAME], "N/A")
-        if sub_cable_amt.empty:
-            current_row += GROUP_ROWS
+    sro_sheet_name = sro[BOX_CODE_FIELD_NAME]
+    current_row = draw_point_and_resources(ws=ws_topo, current_row=current_row, box_data=sro, upper_cable_level=0,
+                                           upper_section_value="N/A", sro_sheet_name=sro_sheet_name)
+    sub_cable_amt = data_service_cable.get_all_1st_segments_start_with_box_order_by_code_asc(
+        sro[BOX_CODE_FIELD_NAME], "N/A")
+    if sub_cable_amt.empty:
+        current_row += GROUP_ROWS
 
     # 保存文件
     wb.save(output_path)
     print(f"拓扑图已生成：{output_path}")
 
 
-def draw_point_and_resources(ws, current_row, box_data, upper_cable_level, upper_section_value):
+def draw_point_and_resources(ws, current_row, box_data, upper_cable_level, upper_section_value, sro_sheet_name):
     """判断点是否需要描绘分支线，至少两个子线缆时，初始化点的分支线的描绘开关、起止点行数"""
     (need_to_draw_box_vertical_branch_line,
      box_vertical_branch_line_start_row) = does_need_to_draw_box_vertical_branch_line(
@@ -77,7 +92,7 @@ def draw_point_and_resources(ws, current_row, box_data, upper_cable_level, upper
     """描绘BOX点"""
     current_row = draw_box_node_and_next_segment_in_same_section(ws, current_row, box_data, upper_cable_level,
                                                                  upper_section_value,
-                                                                 need_to_draw_box_vertical_branch_line)
+                                                                 need_to_draw_box_vertical_branch_line, sro_sheet_name)
 
     """查询以该BOX为起点, 但section!=box的section的所有第一段segments,"""
     first_segments_list = data_service_cable.get_all_1st_segments_start_with_box_order_by_code_asc(
@@ -135,7 +150,8 @@ def draw_point_and_resources(ws, current_row, box_data, upper_cable_level, upper
                 """||||||||||继续调用递归函数描绘点||||||||||"""
                 current_row = draw_point_and_resources(ws=ws, current_row=current_row, box_data=box_on_cable,
                                                        upper_cable_level=_1st_segment[CABLE_LEVEL_FIELD_NAME],
-                                                       upper_section_value=_1st_segment[CABLE_SECTION_FIELD_NAME])
+                                                       upper_section_value=_1st_segment[CABLE_SECTION_FIELD_NAME],
+                                                       sro_sheet_name=sro_sheet_name)
 
             """==================子线缆掏芯点结束=================="""
     return current_row
@@ -156,19 +172,17 @@ def get_sub_boxes_on_one_complete_cable_start_with_1st_section(segment, sub_boxe
 
 
 def draw_box_node_and_next_segment_in_same_section(ws_topo, start_row, box_data, upper_cable_level,
-                                                   upper_section, need_to_draw_box_vertical_branch_line):
+                                                   upper_section, need_to_draw_box_vertical_branch_line,
+                                                   sro_sheet_name):
     col = "A" if upper_cable_level == 0 else excel_utils.get_right_col_letter(
         LEVEL_TO_COLUMN[upper_cable_level])
-    sheet_name = create_box_sheet(ws_topo.parent, col, box_data)
+    sheet_name = create_box_sheet(ws_topo, col, box_data, sro_sheet_name)
     # 子sheet内容暂时留空（无需额外操作）
     current_row = draw_box_node(ws_topo, start_row, col, box_data, sheet_name, need_to_draw_box_vertical_branch_line)
     next_segment = get_next_segment_by_origin_code(upper_section, box_data[BOX_CODE_FIELD_NAME])
     if next_segment is not None and not next_segment.empty:
         draw_vertical_segment(ws_topo, current_row, col, next_segment)
     return current_row
-
-
-
 
 
 def draw_box_node(ws, start_row, col, box_data, sheet_name, need_to_draw_box_vertical_branch_line):
@@ -207,7 +221,10 @@ def draw_box_node(ws, start_row, col, box_data, sheet_name, need_to_draw_box_ver
             if sheet_name:
                 cell = ws.cell(row=row, column=excel_utils.col_to_num(col))
                 cell.hyperlink = f"#'{sheet_name}'!A1"
-                cell.font = Font(color="0000FF", underline="single")
+                cell.hyperlink = Hyperlink(ref=f'{col}{row}',
+                                           location=f"#'{sheet_name}'!A1")
+
+                cell.font = Font(name=FONT_NAME, color="0000FF", underline="single")
         # 第3行：留空
         elif row == start_row + 2:
             set_cell(
@@ -649,10 +666,14 @@ POINT_BRANCHES_BORDER = Border(
     right=Side(style=THICKER_WIDTH)
 )
 
-BOLD_FONT = Font(bold=True)
-BOLD_LINK_FONT = Font(bold=True, italic=True, color="0000FF", underline="single")
+FONT_NAME = 'Calibri'
+
+BOLD_FONT = Font(name=FONT_NAME, bold=True)
+BOLD_LINK_FONT = Font(name=FONT_NAME, bold=True, italic=True, color="0000FF", underline="single")
 CENTER_ALIGN = Alignment(horizontal='center', vertical='center', wrap_text=True)
 LEFT_ALIGN = Alignment(horizontal='left', vertical='center', wrap_text=True)
+
+
 
 
 def merge_cells(ws, start_row, end_row, col, value, border=None, font=None, align=None):
@@ -672,7 +693,7 @@ def merge_cells(ws, start_row, end_row, col, value, border=None, font=None, alig
     cell = ws[f"{col}{start_row}"]
     cell.value = value
     cell.border = border or Border()
-    cell.font = font or Font()
+    cell.font = font or Font(name=FONT_NAME)
     cell.alignment = align or Alignment()
 
 
@@ -688,7 +709,7 @@ def set_cell(ws, row, col, value, border=None, font=None, align=None):
     cell = ws[f"{col}{row}"]
     cell.value = value
     cell.border = border or Border()
-    cell.font = font or Font()
+    cell.font = font or Font(name=FONT_NAME)
     cell.alignment = align or Alignment()
 
 
@@ -704,4 +725,4 @@ def set_cell(ws, row, col, value, border=None, font=None, align=None):
 
 if __name__ == '__main__':
     # init_data.main()
-    generate_topo_sheet("拓扑图输出2.xlsx")
+    gen_topo_files("./")
