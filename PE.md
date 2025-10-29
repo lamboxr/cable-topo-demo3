@@ -1285,3 +1285,24 @@ def draw_cable_and_recurse(ws, start_row, cable_data, level):
 
 点对象衍生出来的线对象列表中，第一个不用额外下沉一组（8个单元格），直接与点对象的描绘空间同行号
 
+---
+
+如果我想将该程序打包，供第三方使用 ，第三方传入图层文件的绝对地址
+
+```json
+{
+	"SRO":{
+		"gpkg_path":"/path/to/srogpkgfile",
+        "layer_name":"sro_layer_name_sample"
+	},	
+    "BOX":{
+		"gpkg_path":"/path/to/boxgpkgfile",
+        "layer_name":"box_layer_name_sample"
+	},	
+    "CABLE":{
+		"gpkg_path":"/path/to/cablegpkgfile",
+        "layer_name":"cable_layer_name_sample"
+	}
+}
+```
+

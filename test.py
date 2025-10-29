@@ -2,6 +2,7 @@ import geopandas as gpd
 
 from constraints.field_name_mapper import BOX_CODE_FIELD_NAME
 from data_service import data_service_cable, data_service_box, data_service_sro
+from data_service.sro_service import SROService
 
 
 def join_query():
@@ -57,5 +58,10 @@ def test_has_at_least_2_sections():
         bl = data_service_cable.has_at_least_2_segments_on_cable(section)
         print(bl)
 
+def test1():
+    sro_service = SROService(gpkg_path='./gpkg/SRO.gpkg', layer_name='elj_qae_sro')
+    a =sro_service.get_all_sro_order_by_code_asc()
+    print(a)
+
 if __name__ == '__main__':
-    test_has_at_least_2_sections()
+    test1()

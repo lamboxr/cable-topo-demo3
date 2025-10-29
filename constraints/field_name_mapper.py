@@ -21,3 +21,6 @@ CABLE_SKIP_COUNT_FIELD_NAME = 'skip_count'
 CABLE_PORT_START_FIELD_NAME = 'port_start'
 CABLE_PORT_END_FIELD_NAME = 'port_end'
 
+DEFAULT_SRO_LAYER = 'elj_qae_sro'
+DEFAULT_BOX_LAYER = 'elj_qae_boite_optique'
+DEFAULT_CABLE_LAYER = 'elj_qae_cable_optique'
