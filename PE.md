@@ -1287,7 +1287,9 @@ def draw_cable_and_recurse(ws, start_row, cable_data, level):
 
 ---
 
-如果我想将该程序打包，供第三方使用 ，第三方传入图层文件的绝对地址
+如果我想将该程序打包成python依赖包，供第三方本地安装引用
+
+输入：第三方传入图层文件的参数:layers, 
 
 ```json
 {
@@ -1305,4 +1307,28 @@ def draw_cable_and_recurse(ws, start_row, cable_data, level):
 	}
 }
 ```
+
+输出：返回文件路径给第三方
+
+```json
+{
+    "code": 200,
+    "file_path": dl_file
+}
+{
+    "code": 400,
+    "file_path": None,
+    "error_message": f"没有找到SRO信息"
+}
+
+{
+    "code": 500,
+    "file_path": None,
+    "error_message": f"发生未知错误：{e}"
+}
+```
+
+内部逻辑：程序将输入参数用于创建data_service实例，读取数据生成excel，返回给第三方系统
+
+如何改造
 

@@ -39,7 +39,7 @@ class TopoFileGenerator:
         self.cable_service = data_services.cable_service
         self.box_sheeter_creator = box_sheeter_creator
 
-    def gen_topo_files(self, output_dir):
+    def gen_topo_files(self, output_dir, timestamp):
         files = []
         if not os.path.exists(output_dir):
             raise FileNotFoundError(f"File {output_dir} not found.")
@@ -49,7 +49,7 @@ class TopoFileGenerator:
             raise Exception("No sro boxes found.")
 
         for _, sro in sro_boxes.iterrows():
-            timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+
             output_path = os.path.join(output_dir, f"{sro[BOX_CODE_FIELD_NAME]}-TOPO_{timestamp}.xlsx")
             self.generate_sro_topo_wb(output_path, sro)
             files.append(output_path)

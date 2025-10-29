@@ -3,6 +3,7 @@ import geopandas as gpd
 from constraints.field_name_mapper import BOX_CODE_FIELD_NAME
 from data_service import data_service_cable, data_service_box, data_service_sro
 from data_service.sro_service import SROService
+from topo_generator import gen_topos
 
 
 def join_query():
@@ -63,5 +64,22 @@ def test1():
     a =sro_service.get_all_sro_order_by_code_asc()
     print(a)
 
+def main_test():
+    p = {
+        "SRO": {
+            "gpkg_path": "./gpkg/SRO.gpkg",
+            "layer_name": "elj_qae_sro"
+        },
+        "BOX": {
+            "gpkg_path": "./gpkg/BOX.gpkg",
+            "layer_name": "elj_qae_boite_optique"
+        },
+        "CABLE": {
+            "gpkg_path": "./gpkg/CABLE.gpkg",
+            "layer_name": "elj_qae_cable_optique"
+        }
+    }
+    print(gen_topos(p, './'))
+
 if __name__ == '__main__':
-    test1()
+    main_test()
